@@ -36,14 +36,12 @@ class model_skipgan(ANBase):
             self.optimizer_Ds.append(optimizer_D)
 
     def train_epoch(self, epoch):
-        print("here")
 
         for _ in tqdm(range(len(self.dataloader["gen"][0].train)), leave=False,
                           total=len(self.dataloader["gen"][0].train)):
             self.global_iter += 1
 
             # TODO update each disc with all gens
-            print("here2")
             for _idxD in range(self.opt.n_D):
                 x_real, _ = next(iter(self.dataloader["disc"][_idxD].train))    # get data batch
                 x_real = x_real.to(self.device)
@@ -72,7 +70,6 @@ class model_skipgan(ANBase):
 
                 err_d_total_loss.backward()
                 self.optims['disc'][_idxD].step()
-            print("here3")
 
             # TODO update each gen with all discs
             for _idxG in range(self.opt.n_G):
@@ -102,11 +99,9 @@ class model_skipgan(ANBase):
 
                 err_g_total_loss.backward()
                 self.optims['gen'][_idxG].step()
-            print("here4")
 
 
     def test_epoch(self,epoch, plot_hist=True):
-        print("Now testin")
 
         with torch.no_grad():
             # Load the weights of netg and netd.
@@ -170,8 +165,9 @@ class model_skipgan(ANBase):
                                 (torch.max(self.an_scores) - torch.min(self.an_scores))
 
             per_scores = self.an_scores.cpu().squeeze()
-
+        plot_hist=True
         if plot_hist:
+            
 
             self.gt_labels = self.gt_labels.cpu()
             auroc = roc(self.gt_labels, per_scores, epoch)
