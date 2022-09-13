@@ -5,7 +5,7 @@ from torchvision.transforms import functional as F
 from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST, CIFAR10, ImageFolder
 
-from dataloader.datasets import get_cifar_anomaly_dataset
+from dataloader.datasets import get_cifar_anomaly_dataset, MVTecDataset
 from dataloader.datasets import get_mnist_anomaly_dataset
 # from dataloader.kdd_dataset import get_loader
 from dataloader.kdd import KDD_dataset
@@ -103,6 +103,13 @@ def load_data(opt):
                              else lambda x: np.random.seed(42)))
         return Data(train_dl, valid_dl)
 
+
+    elif opt.dataset in ['mvtec']:
+        train_ds = MVTecDataset(opt.dataroot, train=True)
+        valid_ds = MVTecDataset(opt.dataroot, train=False)
+        if opt.isize == -1:
+            opt.isize = train_ds.isize
+    
     elif opt.dataset in ['KDD99']:
         train_ds = KDD_dataset(opt, mode='train')
         valid_ds = KDD_dataset(opt, mode='test')
