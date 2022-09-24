@@ -5,7 +5,7 @@ from torchvision.transforms import functional as F
 from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST, CIFAR10, ImageFolder
 
-from dataloader.datasets import get_cifar_anomaly_dataset, MVTecDataset
+from dataloader.datasets import get_cifar_anomaly_dataset, MVTecDataset, PanoramaDataset
 from dataloader.datasets import get_mnist_anomaly_dataset
 # from dataloader.kdd_dataset import get_loader
 from dataloader.kdd import KDD_dataset
@@ -56,6 +56,13 @@ def load_data(opt):
         train_ds = MNIST(root='./data', train=True, download=True, transform=transform)
         valid_ds = MNIST(root='./data', train=False, download=True, transform=transform)
         train_ds, valid_ds = get_mnist_anomaly_dataset(train_ds, valid_ds, int(opt.abnormal_class))
+    
+    elif opt.dataset == "panorama":
+
+        train_ds = PanoramaDataset(opt.dataroot, train=True)
+        valid_ds = PanoramaDataset(opt.dataroot, train=False)
+        if opt.isize == -1:
+            opt.isize = train_ds.isize
 
     # FOLDER
     elif opt.dataset in ['OCT']:

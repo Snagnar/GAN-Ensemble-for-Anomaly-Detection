@@ -1,6 +1,7 @@
 from torchvision import transforms
 import torch.utils.data as data
 import torch
+from xml.dom import minidom
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import Normalizer
@@ -161,6 +162,80 @@ class MVTecDataset:
 
     def __len__(self):
         return len(self.image_files)
+
+
+class PanoramaDataset:
+    
+    def __init__(self, data_dir, inference=False, train=True, cache_images=True, train_split=0.7):
+        self.data_dir = Path(data_dir)
+        check_paths(self.data_dir)
+        if not self.data_dir.is_dir():
+            raise RuntimeError(f"direcotry {str(self.data_dir.resolve())} is not a directory!")
+        
+        self.transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Resize((128, 128)),
+                transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+            ]
+        )
+        self.isize = 128
+        self.train = train
+        self.cache_images = cache_images
+        self.inference = inference
+        self.image_metadata_files = [p_file for p_file in self.data_dir.iterdir() if p_file.suffix == ".xml"]
+        self.image_metadata_files.sort()
+        self.good_ones = []
+        self.bad_ones = []
+        for metadata_file in self.image_metadata_files:
+            metadata = minidom.parse(metadata_file.open())
+            objects = metadata.getElementsByTagName("object")
+            if len(objects) <= 1:
+                self.good_ones.append(metadata_file.parent / (metadata_file.stem + ".jpg"))
+            else:
+                self.bad_ones.append(metadata_file.parent / (metadata_file.stem + ".jpg"))
+        split_idx = int(len(self.good_ones) * train_split)
+        if self.train:
+            # self.image_files = self.good_ones[:int(len(self.good_ones) * train_split)]
+            self.dataset = [(image_file, 0) for image_file in self.good_ones[:split_idx]]
+        else:
+            self.dataset = [(image_file, 1) for image_file in self.bad_ones[:min(2 * split_idx, len(self.bad_ones))]]
+            self.dataset += [(image_file, 0) for image_file in self.good_ones[split_idx:]]
+            
+            # for directory in (self.data_dir / "test").iterdir():
+            #     self.image_files += list(directory.iterdir())
+        random.shuffle(self.dataset)
+        self.images = None
+        if cache_images:
+            self.images = []
+            print("caching images...")
+            for image_file, _ in self.dataset:
+                image = Image.open(image_file).convert("RGB")
+                image = self.transform(image)
+                self.images.append(image)
+
+    def __getitem__(self, index):
+        image_file, target = self.dataset[index]
+        if self.cache_images and self.images[index] is not None:
+            image = self.images[index]
+        else:
+            image = Image.open(image_file).convert("RGB")
+            image = self.transform(image)
+        
+            # if image_file.parent.name == "good":
+            #     target = torch.zeros([1, image.shape[-2], image.shape[-1]])
+            # else:
+            #     target = Image.open(
+            #         image_file.replace("/test/", "/ground_truth/").replace(
+            #             ".png", "_mask.png"
+            #         )
+            #     )
+            #     target = self.target_transform(target)
+        return image, target
+
+    def __len__(self):
+        return len(self.dataset)
+
 
 
 class ImageFolder(data.Dataset):
