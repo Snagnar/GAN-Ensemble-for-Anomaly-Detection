@@ -237,6 +237,88 @@ class PanoramaDataset:
         return len(self.dataset)
 
 
+from imageio import imread
+
+class RoadImageDatasetPartition():
+    def __init__(self, image_files, train=False, imsize=128):
+        super().__init__()
+        self.train = train
+        self.files = image_files
+        print("in partition", "train" if train else "test", "files:", len(self.files))
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize((imsize, imsize)),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ])
+    
+    def __getitem__(self, idx):
+        image_files = self.files[idx]
+        intensity_values = imread(image_files[1])[:, :, np.newaxis]
+        height_values = imread(image_files[0])[:, :, np.newaxis]
+        if len(height_values.shape) > 3:
+            height_values = height_values[:, :, 0, 0]
+            height_values = height_values[:, :, np.newaxis]
+            intensity_values = intensity_values[:, :, 0, 0]
+            intensity_values = intensity_values[:, :, np.newaxis]
+        image_values = np.concatenate([height_values, intensity_values, intensity_values], axis=-1)
+        image_values = self.transform(image_values).type(torch.FloatTensor)
+        return image_values, int(image_files[0].parent.parent.name == "bad_ones")
+    
+    def __len__(self):
+        return len(self.files)
+
+class AnnotatedRoadImageDataset():
+    train_split = 0.7
+    def __init__(self, data_dir, train=True, inference=False, cache=True, imsize=128):
+        super().__init__()
+        # if train:
+        self.isize = imsize
+        self.data_dir = Path(data_dir) / "good_ones"
+        check_paths(self.data_dir)
+        if not self.data_dir.is_dir():
+            raise RuntimeError(f"directory {str(self.data_dir.reslove())} is not a directory!")
+        intensity_dir = self.data_dir / "intensity_files"
+        height_dir = self.data_dir / "height_files"
+        self.inference = inference                                                                                                                                                             
+        self.files = list(zip(sorted(list(height_dir.iterdir())), sorted(list(intensity_dir.iterdir()))))
+        if len(self.files) == 0:
+            raise RuntimeError(f"directory {str(self.data_dir.resolve())} does not contain any files!")
+        random.shuffle(self.files)
+        
+        # self.files = random.sample(self.files, len(self.files), )
+        if train:
+            self.dataset = RoadImageDatasetPartition(self.files[:int(self.train_split * len(self.files))], train=True, imsize=imsize)
+        else:
+            self.data_dir = self.data_dir.parent / "bad_ones"
+
+            check_paths(self.data_dir)
+            if not self.data_dir.is_dir():
+                raise RuntimeError(f"directory {str(self.data_dir.reslove())} is not a directory!")
+            intensity_dir = self.data_dir / "intensity_files"
+            height_dir = self.data_dir / "height_files"
+            self.inference = inference                                                                                                                                                             
+            self.test_files = list(zip(sorted(list(height_dir.iterdir())), sorted(list(intensity_dir.iterdir()))))
+            self.files = self.files[int(self.train_split * len(self.files)):] + self.test_files
+            random.shuffle(self.files)
+            self.dataset = RoadImageDatasetPartition(self.files, train=False, imsize=imsize)
+        print(train, len(self.dataset))
+        self.cache = cache
+        self.cached_dataset = None
+        if cache:
+            print("caching...")
+            self.cached_dataset = [self.dataset[idx] for idx in range(len(self.dataset))]
+        
+    
+    def __getitem__(self, idx):
+        if self.cache:
+            return self.cached_dataset[idx]
+        return self.dataset[idx]
+    
+    def __len__(self):
+        return len(self.dataset)
+
+
+
 
 class ImageFolder(data.Dataset):
     """A generic data loader where the images are arranged in this way: ::

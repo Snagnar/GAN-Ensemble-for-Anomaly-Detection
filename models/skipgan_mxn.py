@@ -1,11 +1,17 @@
 from models.basemodel import *
 import torch
 from models.evaluate import roc
+from pathlib import Path
+import wandb
+
+maxroc = 0.0
 
 class model_skipgan(ANBase):
     def __init__(self, opt):
         super(model_skipgan, self).__init__(opt)
         self.rocs = {'auroc':[]}
+        wandb.init(name=Path(opt.dataroot).stem)
+        self.maxroc = 0.0
 
     def dataloader_setup(self):
         self.dataloader = {
@@ -20,7 +26,8 @@ class model_skipgan(ANBase):
             net_G = self.create_G(self.opt).to('cuda')
             # TODO: initialized weight with prior N(0, 0.02) [From bayesian GAN]
             # net_G.apply(weights_init)
-            optimizer_G = torch.optim.Adam(net_G.parameters(), lr=self.opt.lr, betas=(self.opt.beta1, 0.999))
+            optimizer_G = torch.optim.RAdam(net_G.parameters())
+            # optimizer_G = torch.optim.Adam(net_G.parameters(), lr=self.opt.lr, betas=(self.opt.beta1, 0.999))
             self.net_Gs.append(net_G)
             self.optimizer_Gs.append(optimizer_G)
 
@@ -31,7 +38,8 @@ class model_skipgan(ANBase):
             net_D = self.create_D(self.opt).to('cuda')
             # TODO: initialized weight with prior N(0, 0.02) [From bayesian GAN]
             # net_D.apply(weights_init)
-            optimizer_D = torch.optim.Adam(net_D.parameters(), lr=self.opt.lr, betas=(self.opt.beta1, 0.999))
+            optimizer_D = torch.optim.RAdam(net_D.parameters())
+            # optimizer_D = torch.optim.Adam(net_D.parameters(), lr=self.opt.lr, betas=(self.opt.beta1, 0.999))
             self.net_Ds.append(net_D)
             self.optimizer_Ds.append(optimizer_D)
 
@@ -121,8 +129,10 @@ class model_skipgan(ANBase):
 
 
             ensemble_iter = 0
-            for g in range(3):
-                for d in range(3):
+            # for g in range(3):
+            for g in range(1):
+                # for d in range(3):
+                for d in range(1):
 
                     self.total_steps = 0
                     epoch_iter = 0
@@ -145,7 +155,8 @@ class model_skipgan(ANBase):
                         lat = (self.feat_real - self.feat_fake).view(sz[0], sz[1] * sz[2] * sz[3])
                         rec = torch.mean(torch.pow(rec, 2), dim=1)
                         lat = torch.mean(torch.pow(lat, 2), dim=1)
-                        error = self.opt.alpha * rec + (1-self.opt.alpha) * lat
+                        error = self.opt.alpha * rec + (1-self.opt.alpha) * 0.0
+                        # error = self.opt.alpha * rec + (1-self.opt.alpha) * lat
 
 
 
@@ -174,6 +185,8 @@ class model_skipgan(ANBase):
 
             print('auroc is {}'.format(auroc))
             self.rocs['auroc'].append(auroc)
+            self.maxroc = max(self.maxroc, auroc)
+            wandb.log({"roc": auroc, "max_roc": self.maxroc})
             
             plt.ion()
             # Create data frame for scores and labels.

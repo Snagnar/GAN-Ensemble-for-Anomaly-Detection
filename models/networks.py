@@ -436,6 +436,7 @@ def define_G(opt, norm='batch', use_dropout=False, init_type='normal'):
     netG = None
     norm_layer = get_norm_layer(norm_type=norm)
     num_layer = int(np.log2(opt.isize))
+    print("num layers:", num_layer)
     netG = UnetGenerator(opt.nc, opt.nc, num_layer, opt.ngf, norm_layer=norm_layer, use_dropout=use_dropout)
     return init_net(netG)
 
@@ -561,6 +562,7 @@ class UnetGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, num_downs, ngf=64,
                  norm_layer=nn.BatchNorm2d, use_dropout=False):
         super(UnetGenerator, self).__init__()
+        print("creating with ", input_nc, output_nc, num_downs, ngf, norm_layer, use_dropout)
 
         # construct unet structure
         unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer, innermost=True)

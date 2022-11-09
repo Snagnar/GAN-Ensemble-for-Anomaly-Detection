@@ -81,7 +81,7 @@ class ANBase:
 
         for epoch in range(self.opt.niter):
             self.train_epoch(epoch)
-            self.save_weight(epoch)
+            # self.save_weight(epoch)
             self.test_epoch(epoch)
         hist = pd.DataFrame.from_dict(self.rocs)
         hist.to_csv(

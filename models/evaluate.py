@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import os
-from sklearn.metrics import roc_curve, auc, average_precision_score, f1_score
+from sklearn.metrics import roc_curve, auc, average_precision_score, f1_score, roc_auc_score
 from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
@@ -35,6 +35,7 @@ def roc(labels, scores, save=False):
     # True/False Positive Rates.
     fpr, tpr, thresholds = roc_curve(labels, scores)
     roc_auc = auc(fpr, tpr)
+    roc_auc = roc_auc_score(labels, scores)
     return roc_auc
 
 
